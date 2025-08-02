@@ -2,7 +2,7 @@ import { useState } from "react";
 import API from "../services/api";
 import { useNavigate } from "react-router-dom";
 
-const Login = () => {
+const Login = ({ setIsLoggedIn }) => {
   const [form, setForm] = useState({ email: "", password: "" });
   const navigate = useNavigate();
 
@@ -13,7 +13,8 @@ const Login = () => {
     try {
       const res = await API.post("/auth/login", form);
       localStorage.setItem("token", res.data.token);
-      navigate("/dashboard"); // or any private route
+      setIsLoggedIn(true);
+      navigate("/dashboard");
     } catch (err) {
       alert(err.response?.data?.message || "Login error");
     }
