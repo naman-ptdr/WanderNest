@@ -11,8 +11,12 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);app.use(express.json());
 
 // Routes
 app.get("/", (req, res) => {
@@ -24,6 +28,8 @@ app.use("/api/v1/auth", authRoutes);
 // test route
 app.use("/api/v1/test", testRoutes);
 
+
+app.use("/api/auth", authRoutes);
 // Connect DB and start server
 connectDB();
 const PORT = process.env.PORT || 5000;
