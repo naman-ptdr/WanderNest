@@ -11,16 +11,20 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen p-8 bg-gray-100">
-      <h1 className="text-3xl font-bold mb-2">Welcome, {user?.name} 👋</h1>
-      <p className="text-gray-700 mb-6">Your email: {user?.email}</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center px-4">
+      <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-lg">
+        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+          Welcome, {user?.name} 👋
+        </h1>
+        <p className="text-lg text-gray-600 mb-6">Email: {user?.email}</p>
 
-      <button
-        onClick={handleLogout}
-        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-      >
-        Logout
-      </button>
+        <button
+          onClick={handleLogout}
+          className="w-full bg-red-500 text-white font-semibold py-2 rounded-lg hover:bg-red-600 transition duration-200"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   );
 };

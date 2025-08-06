@@ -1,7 +1,6 @@
 import { useState } from "react";
 import API from "../services/api";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const Login = ({ setIsLoggedIn }) => {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -16,7 +15,6 @@ const Login = ({ setIsLoggedIn }) => {
       const res = await API.post("/auth/login", form);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
-
       setIsLoggedIn(true);
       navigate("/dashboard");
     } catch (err) {
@@ -25,35 +23,48 @@ const Login = ({ setIsLoggedIn }) => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-80"
-      >
-        <h2 className="text-xl font-bold mb-4">Login</h2>
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          onChange={handleChange}
-          className="input"
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          onChange={handleChange}
-          className="input"
-          required
-        />
-        <button type="submit" className="btn">
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center px-4">
+      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
           Login
-        </button>
-        <p className="text-sm text-blue-500 hover:underline mt-2">
-          <Link to="/forgot-password">Forgot Password?</Link>
-        </p>
-      </form>
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            onChange={handleChange}
+            value={form.email}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            onChange={handleChange}
+            value={form.password}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          <button
+            type="submit"
+            className="w-full bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition duration-200"
+          >
+            Login
+          </button>
+        </form>
+
+        <div className="text-sm mt-4 flex justify-between">
+          <Link to="/forgot-password" className="text-blue-500 hover:underline">
+            Forgot Password?
+          </Link>
+          <Link to="/register" className="text-blue-500 hover:underline">
+            New user? Register
+          </Link>
+        </div>
+      </div>
     </div>
   );
 };

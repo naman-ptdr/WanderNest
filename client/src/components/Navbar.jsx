@@ -10,9 +10,10 @@ const Navbar = ({ isLoggedIn, setIsLoggedIn }) => {
   };
 
   return (
-    <nav className="bg-blue-600 p-4 text-white flex justify-between">
+    <nav className="bg-blue-600 p-4 text-white flex items-center justify-between shadow-md">
       <Link to="/" className="font-bold text-lg">WanderNest</Link>
-      <div className="space-x-4">
+      <div className="space-x-4 flex items-center">
+
         <Link to="/">Home</Link>
         {!isLoggedIn ? (
           <>
