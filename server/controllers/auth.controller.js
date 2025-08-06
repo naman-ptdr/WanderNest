@@ -2,7 +2,7 @@ import { User } from "../models/user.model.js";
 import { generateToken } from "../utils/jwtToken.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-
+import { sendEmail } from "../utils/sendEmail.js";
 
 
 export const register = async (req, res) => {
@@ -27,6 +27,8 @@ export const register = async (req, res) => {
   }
 };
 
+
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -34,7 +36,12 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email }).select("+password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    console.log("Entered:", password);
+    console.log("Stored:", user.password);
+
     const isMatch = await user.comparePassword(password);
+    console.log("Password match result:", isMatch);
+
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
     const token = generateToken(user._id);
@@ -67,14 +74,27 @@ export const sendResetLink = async (req, res) => {
     });
 
     const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
-    console.log("RESET LINK:", resetLink);
 
-    res.status(200).json({ message: "Reset link sent to your email (console log simulated)" });
+    // ✅ Send email using Nodemailer
+    await sendEmail(
+      user.email,
+      "Reset your WanderNest password",
+      `<p>Hi ${user.name || "User"},</p>
+       <p>Click the link below to reset your password:</p>
+       <a href="${resetLink}">${resetLink}</a>
+       <p>This link is valid for 15 minutes.</p>`
+    );
+
+    res.status(200).json({ message: "Reset link sent to your email." });
   } catch (error) {
     console.error("Forgot Password Error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+
+
 
 export const resetPassword = async (req, res) => {
   const { token } = req.params;
@@ -82,9 +102,11 @@ export const resetPassword = async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("+password");
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    // No need to hash here — .pre('save') hook will handle it
     user.password = password;
     await user.save();
 
