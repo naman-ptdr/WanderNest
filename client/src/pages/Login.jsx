@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import API from "../services/api";
-import { useNavigate, Link } from "react-router-dom";
 
 const Login = ({ setIsLoggedIn }) => {
   const [form, setForm] = useState({ email: "", password: "" });
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ Check for ?registered=true in URL
+  const registered = new URLSearchParams(location.search).get("registered");
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -28,6 +32,13 @@ const Login = ({ setIsLoggedIn }) => {
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
           Login
         </h2>
+
+        {/* ✅ Success message after registration */}
+        {registered === "true" && (
+          <div className="mb-4 text-green-600 text-center font-medium">
+            ✅ Registration successful! You can now log in.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input

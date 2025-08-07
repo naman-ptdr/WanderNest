@@ -14,7 +14,7 @@ const Register = () => {
     try {
       const res = await API.post("/auth/register", form);
       localStorage.setItem("token", res.data.token);
-      navigate("/login");
+      navigate("/login?registered=true");
     } catch (err) {
       console.error("Registration error:", err.response?.data || err.message);
       alert(err.response?.data?.message || "Registration error");

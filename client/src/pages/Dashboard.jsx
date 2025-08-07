@@ -1,30 +1,25 @@
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import TripPlannerForm from '../components/TripPlannerForm';
 
 const Dashboard = () => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
+  const [location, setLocation] = useState(null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center px-4">
-      <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-lg">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          Welcome, {user?.name} 👋
-        </h1>
-        <p className="text-lg text-gray-600 mb-6">Email: {user?.email}</p>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-4">Tell us your travel preferences 🏕️🌴</h1>
+      <p className="text-gray-600 mb-8">
+        Just provide basic information, and our trip planner will generate a customized itinerary based on your preferences.
+      </p>
 
-        <button
-          onClick={handleLogout}
-          className="w-full bg-red-500 text-white font-semibold py-2 rounded-lg hover:bg-red-600 transition duration-200"
-        >
-          Logout
-        </button>
-      </div>
+      <TripPlannerForm onLocationChosen={setLocation} />
+
+      {location && (
+        <div className="mt-6 p-4 border rounded">
+          <h2 className="text-xl font-bold">Location selected:</h2>
+          <p>{location.name}</p>
+          <p>Lat: {location.lat}, Lng: {location.lng}</p>
+        </div>
+      )}
     </div>
   );
 };
