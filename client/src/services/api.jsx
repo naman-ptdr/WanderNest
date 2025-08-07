@@ -1,5 +1,3 @@
-// src/services/api.jsx
-
 import axios from "axios";
 
 const API = axios.create({
@@ -7,8 +5,7 @@ const API = axios.create({
   withCredentials: true,
 });
 
-export default API; // ✅ Add this line
+export default API;
 
-// You can still export functions too if needed
 export const searchLocation = (query) =>
-  API.get(`/location/search?query=${query}`);
+  API.get(`/location/search?q=${query}`); // ✅ FIXED: was `query=`, now `q=`

@@ -11,8 +11,10 @@ const Dashboard = () => {
         Just provide basic information, and our trip planner will generate a customized itinerary based on your preferences.
       </p>
 
+      {/* Trip Planner Form */}
       <TripPlannerForm onLocationChosen={setLocation} />
 
+      {/* Show selected location details */}
       {location && (
         <div className="mt-6 p-4 border rounded">
           <h2 className="text-xl font-bold">Location selected:</h2>
