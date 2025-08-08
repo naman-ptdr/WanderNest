@@ -1,6 +1,47 @@
 // server/controllers/trip.controller.js
 import { generateWithGemini, extractJSON } from "../config/gemini.js";
 import Trip from "../models/trip.model.js";
+import axios from "axios";
+
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+
+// Fetch image from Pexels API
+const fetchImageFromPexels = async (query) => {
+  try {
+    const res = await axios.get("https://api.pexels.com/v1/search", {
+      params: { query, per_page: 1, orientation: "landscape" },
+      headers: { Authorization: PEXELS_API_KEY },
+    });
+    return res.data.photos[0]?.src?.landscape || "";
+  } catch (err) {
+    console.error(`Pexels fetch error for ${query}:`, err.message);
+    return "";
+  }
+};
+
+// Fallback: fetch image from Unsplash API
+const fetchImageFromUnsplash = async (query) => {
+  try {
+    const res = await axios.get("https://api.unsplash.com/search/photos", {
+      params: { query, per_page: 1, orientation: "landscape" },
+      headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
+    });
+    return res.data.results[0]?.urls?.regular || "";
+  } catch (err) {
+    console.error(`Unsplash fetch error for ${query}:`, err.message);
+    return "";
+  }
+};
+
+// Fetch image using Pexels first, fallback to Unsplash
+const fetchImage = async (query) => {
+  let image = await fetchImageFromPexels(query);
+  if (!image) {
+    image = await fetchImageFromUnsplash(query);
+  }
+  return image;
+};
 
 export const generateTrip = async (req, res) => {
   try {
@@ -21,7 +62,6 @@ Schema:
       "hotelName": "",
       "hotelAddress": "",
       "price": "",
-      "hotelImageUrl": "",
       "geoCoordinates": { "latitude": number, "longitude": number },
       "rating": "",
       "description": ""
@@ -34,7 +74,6 @@ Schema:
         {
           "placeName": "",
           "placeDetails": "",
-          "placeImageUrl": "",
           "geoCoordinates": { "latitude": number, "longitude": number },
           "ticketPricing": "",
           "bestTime": "",
@@ -53,8 +92,8 @@ Schema:
 }
 
 Rules for generation:
-1. Provide at least 5 real hotels with actual names, addresses, coordinates, ratings, and public image URLs (no placeholders or example.com).
-2. For each day, give exactly 3 real attractions (morning, afternoon, evening) with full details: name, description, exact coordinates, real image URL, realistic ticket pricing, best time, and time slots in HH:MM format.
+1. Provide at least 5 real hotels with actual names, addresses, coordinates, ratings, and realistic descriptions.
+2. For each day, give exactly 3 real attractions (morning, afternoon, evening) with full details: name, description, exact coordinates, realistic ticket pricing, best time, and time slots in HH:MM format.
 3. Ensure the bestTimeVisit for each day is relevant to that day's plan.
 4. All coordinates must be accurate and in decimal degrees format.
 5. Estimated cost should match the chosen budget level and be realistic for the destination.
@@ -66,19 +105,32 @@ Generate for:
 ${JSON.stringify({ location, days, budget, group })}
 `;
 
-    // Call Gemini
+    // Step 1: Call Gemini
     const aiResponse = await generateWithGemini(prompt);
 
-    // Clean & parse the AI output
+    // Step 2: Clean & parse AI output
     const parsedData = extractJSON(aiResponse);
-
     if (!parsedData) {
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // Send the valid JSON
-    res.status(200).json(parsedData);
+    // Step 3: Add images using Pexels fallback Unsplash
+    for (const hotel of parsedData.hotelOptions) {
+      hotel.hotelImageUrl = await fetchImage(
+        `${hotel.hotelName} hotel in ${parsedData.location.name}`
+      );
+    }
 
+    for (const day of parsedData.itinerary) {
+      for (const place of day.plan) {
+        place.placeImageUrl = await fetchImage(
+          `${place.placeName} in ${parsedData.location.name}`
+        );
+      }
+    }
+
+    // Step 4: Send final enriched JSON
+    res.status(200).json(parsedData);
   } catch (err) {
     console.error("Trip generation error:", err);
     res.status(500).json({ error: "Failed to generate trip" });
