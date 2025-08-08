@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { searchLocation } from "../services/api.jsx";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
+import API from "../services/api.jsx";
+
 
 const budgetOptions = [
   { title: "Cheap", icon: "💸", desc: "Stay conscious of costs" },
@@ -56,26 +58,33 @@ const TripPlannerForm = ({ onLocationChosen }) => {
   };
 
   const handleGenerate = async () => {
-    if (!selectedLocation || !days || !selectedBudget || !selectedGroup) {
-      alert("Please fill all fields before generating trip.");
-      return;
-    }
+  if (!selectedLocation || !days || !selectedBudget || !selectedGroup) {
+    alert("Please fill all fields before generating trip.");
+    return;
+  }
 
-    const input = {
-      location: selectedLocation,
-      days,
-      budget: selectedBudget,
-      group: selectedGroup,
-    };
-
-    console.log("Sending to Gemini:", input);
-    setLoading(true);
-
-    setTimeout(() => {
-      setLoading(false);
-      alert("Trip plan generated! (Fake for now)");
-    }, 2500);
+  const input = {
+    location: selectedLocation,
+    days: Number(days),
+    budget: selectedBudget,
+    group: selectedGroup,
   };
+
+  setLoading(true);
+  try {
+    const res = await API.post("/trip/generate", input);
+    // console.log("Trip response:", res.data);
+    console.log("Trip response:", JSON.stringify(res.data, null, 2));
+    setLoading(false);
+    // lift state to Dashboard or route to Trip view:
+    // e.g., props.onTripGenerated(res.data.trip);
+    alert("Trip generated! Check console or navigate to trip page.");
+  } catch (err) {
+    setLoading(false);
+    console.error(err);
+    alert("Failed to generate trip. Check server logs.");
+  }
+};
 
   return (
     <div className="flex flex-col gap-6">

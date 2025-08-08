@@ -6,6 +6,8 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import testRoutes from "./routes/test.routes.js";
 import locationRoutes from "./routes/location.routes.js";
+import tripRoutes from "./routes/trip.routes.js";
+
 
 
 dotenv.config();
@@ -29,7 +31,7 @@ app.get("/", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/test", testRoutes);
 app.use("/api/v1/location", locationRoutes);
-
+app.use("/api/v1/trip", tripRoutes);
 
 // Start server
 connectDB();
