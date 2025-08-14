@@ -114,25 +114,45 @@ ${JSON.stringify({ location, days, budget, group })}
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // Step 3: Add images using Pexels fallback Unsplash
-    for (const hotel of parsedData.hotelOptions) {
-      hotel.hotelImageUrl = await fetchImage(
-        `${hotel.hotelName} hotel in ${parsedData.location.name}`
-      );
+    // Step 3: Add images safely
+    if (Array.isArray(parsedData.hotelOptions)) {
+      for (const hotel of parsedData.hotelOptions) {
+        try {
+          hotel.hotelImageUrl =
+            (await fetchImage(
+              `${hotel.hotelName || ""} hotel in ${parsedData.location?.name || ""}`
+            )) || "";
+        } catch (e) {
+          console.error("Hotel image fetch failed:", e.message);
+          hotel.hotelImageUrl = "";
+        }
+      }
     }
 
-    for (const day of parsedData.itinerary) {
-      for (const place of day.plan) {
-        place.placeImageUrl = await fetchImage(
-          `${place.placeName} in ${parsedData.location.name}`
-        );
+    if (Array.isArray(parsedData.itinerary)) {
+      for (const day of parsedData.itinerary) {
+        if (Array.isArray(day.plan)) {
+          for (const place of day.plan) {
+            try {
+              place.placeImageUrl =
+                (await fetchImage(
+                  `${place.placeName || ""} in ${parsedData.location?.name || ""}`
+                )) || "";
+            } catch (e) {
+              console.error("Place image fetch failed:", e.message);
+              place.placeImageUrl = "";
+            }
+          }
+        }
       }
     }
 
     // Step 4: Send final enriched JSON
     res.status(200).json(parsedData);
+
   } catch (err) {
     console.error("Trip generation error:", err);
     res.status(500).json({ error: "Failed to generate trip" });
   }
 };
+

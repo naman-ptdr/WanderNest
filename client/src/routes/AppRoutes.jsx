@@ -6,8 +6,7 @@ import Dashboard from "../pages/Dashboard";
 import ProtectedRoute from "./ProtectedRoute";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
-
-
+import TripResults from "../pages/TripResults"; // ✅ NEW
 
 const AppRoutes = ({ isLoggedIn, setIsLoggedIn }) => {
   return (
@@ -23,9 +22,16 @@ const AppRoutes = ({ isLoggedIn, setIsLoggedIn }) => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/trip-results"
+        element={
+          <ProtectedRoute>
+            <TripResults />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
-
     </Routes>
   );
 };
