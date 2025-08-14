@@ -6,41 +6,74 @@ import axios from "axios";
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 
-// Fetch image from Pexels API
+// --- Helpers ---
+const sanitizeQuery = (text) => {
+  if (!text) return "";
+  return text.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+};
+
+const usedImages = new Set();
+
+// Fetch random image from Pexels API
 const fetchImageFromPexels = async (query) => {
   try {
     const res = await axios.get("https://api.pexels.com/v1/search", {
-      params: { query, per_page: 1, orientation: "landscape" },
+      params: { query, per_page: 5, orientation: "landscape" },
       headers: { Authorization: PEXELS_API_KEY },
     });
-    return res.data.photos[0]?.src?.landscape || "";
+    const photos = res.data.photos;
+    if (photos.length > 0) {
+      const randomPhoto =
+        photos[Math.floor(Math.random() * photos.length)]?.src?.landscape;
+      return randomPhoto || "";
+    }
+    return "";
   } catch (err) {
     console.error(`Pexels fetch error for ${query}:`, err.message);
     return "";
   }
 };
 
-// Fallback: fetch image from Unsplash API
+// Fallback: random image from Unsplash API
 const fetchImageFromUnsplash = async (query) => {
   try {
     const res = await axios.get("https://api.unsplash.com/search/photos", {
-      params: { query, per_page: 1, orientation: "landscape" },
+      params: { query, per_page: 5, orientation: "landscape" },
       headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
     });
-    return res.data.results[0]?.urls?.regular || "";
+    const results = res.data.results;
+    if (results.length > 0) {
+      const randomPhoto =
+        results[Math.floor(Math.random() * results.length)]?.urls?.regular;
+      return randomPhoto || "";
+    }
+    return "";
   } catch (err) {
     console.error(`Unsplash fetch error for ${query}:`, err.message);
     return "";
   }
 };
 
-// Fetch image using Pexels first, fallback to Unsplash
-const fetchImage = async (query) => {
+// Main fetch function with duplicate prevention
+const fetchUniqueImage = async (query) => {
   let image = await fetchImageFromPexels(query);
   if (!image) {
     image = await fetchImageFromUnsplash(query);
   }
-  return image;
+
+  let attempt = 1;
+  while (image && usedImages.has(image) && attempt < 5) {
+    // Try again with slightly modified query
+    const altQuery = `${query} ${attempt}`;
+    image = await fetchImageFromPexels(altQuery);
+    if (!image) {
+      image = await fetchImageFromUnsplash(altQuery);
+    }
+    attempt++;
+  }
+
+  if (image) usedImages.add(image);
+  return image || "";
 };
 
 export const generateTrip = async (req, res) => {
@@ -119,8 +152,8 @@ ${JSON.stringify({ location, days, budget, group })}
       for (const hotel of parsedData.hotelOptions) {
         try {
           hotel.hotelImageUrl =
-            (await fetchImage(
-              `${hotel.hotelName || ""} hotel in ${parsedData.location?.name || ""}`
+            (await fetchUniqueImage(
+              `${sanitizeQuery(hotel.hotelName)} ${sanitizeQuery(parsedData.location?.name)} hotel exterior`
             )) || "";
         } catch (e) {
           console.error("Hotel image fetch failed:", e.message);
@@ -135,8 +168,8 @@ ${JSON.stringify({ location, days, budget, group })}
           for (const place of day.plan) {
             try {
               place.placeImageUrl =
-                (await fetchImage(
-                  `${place.placeName || ""} in ${parsedData.location?.name || ""}`
+                (await fetchUniqueImage(
+                  `${sanitizeQuery(place.placeName)} ${sanitizeQuery(parsedData.location?.name)} tourist attraction`
                 )) || "";
             } catch (e) {
               console.error("Place image fetch failed:", e.message);
@@ -155,4 +188,3 @@ ${JSON.stringify({ location, days, budget, group })}
     res.status(500).json({ error: "Failed to generate trip" });
   }
 };
-
