@@ -28,43 +28,78 @@ export async function generateWithGemini(prompt, generationConfig = {}) {
     ...generationConfig,
   };
 
-  try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: genCfg,
-    });
+  let attempts = 0;
+  const maxRetries = 3;
+  const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
-    // Gemini SDK returns text like result.response.text()
-    return result?.response?.text() ?? "";
-  } catch (err) {
-    console.error("Gemini API error:", err);
-    throw new Error("Failed to generate content from Gemini");
+  while (attempts < maxRetries) {
+    try {
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: genCfg,
+      });
+
+      return result?.response?.text() ?? "";
+    } catch (err) {
+      attempts++;
+      console.error(`❌ Gemini API error (attempt ${attempts}):`, err.message);
+
+      // If it's a 503 or network issue, retry after delay
+      if (err.message.includes("503") || err.message.includes("overloaded")) {
+        console.log("🔄 Retrying in 2 seconds...");
+        await delay(2000);
+        continue;
+      }
+
+      // Other errors → don't retry
+      throw new Error("Failed to generate content from Gemini");
+    }
   }
+
+  // Fallback response if Gemini is completely down
+  console.warn("⚠️ Gemini API unreachable after retries, using fallback.");
+  return JSON.stringify({
+    destination: "Unknown",
+    duration: "N/A",
+    plan: [],
+    note: "AI service temporarily unavailable. Please try again later."
+  });
 }
 
+
 /**
- * Extract valid JSON from AI response text
+ * Extract valid JSON from AI response text with fallbacks
  * @param {string} text - Raw AI response
  * @returns {object|null} - Parsed JSON object or null if failed
  */
 export function extractJSON(text) {
   if (!text || typeof text !== "string") return null;
 
-  // Remove triple backticks and possible "json" hint
-  const cleaned = text.replace(/```json|```/g, "").trim();
+  // Remove markdown code fences if present
+  let cleaned = text.replace(/```json|```/g, "").trim();
 
+  // 1️⃣ Direct parse attempt
   try {
     return JSON.parse(cleaned);
-  } catch {
-    // Try fallback regex extraction if extra text exists
-    const match = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {
-        return null;
-      }
-    }
-    return null;
+  } catch {}
+
+  // 2️⃣ Try regex to capture JSON object or array
+  const match = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+  if (match) {
+    try {
+      return JSON.parse(match[0]);
+    } catch {}
   }
+
+  // 3️⃣ Try repairing common issues like trailing commas
+  try {
+    cleaned = cleaned
+      .replace(/,\s*}/g, "}") // Remove trailing commas in objects
+      .replace(/,\s*]/g, "]"); // Remove trailing commas in arrays
+    return JSON.parse(cleaned);
+  } catch {}
+
+  // 4️⃣ If all fails
+  console.warn("⚠️ Failed to parse Gemini JSON response. Raw output:", text);
+  return null;
 }

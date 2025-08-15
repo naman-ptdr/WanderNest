@@ -1,55 +1,25 @@
-// server/controllers/trip.controller.js
 import { generateWithGemini, extractJSON } from "../config/gemini.js";
-import Trip from "../models/trip.model.js";
-import axios from "axios";
+import { fetchImage, fetchLocationImages } from "../utils/imageFetcher.js";
 
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
-const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
-
-// Fetch image from Pexels API
-const fetchImageFromPexels = async (query) => {
+// GET endpoint to just fetch images
+export const getTripImages = async (req, res) => {
   try {
-    const res = await axios.get("https://api.pexels.com/v1/search", {
-      params: { query, per_page: 1, orientation: "landscape" },
-      headers: { Authorization: PEXELS_API_KEY },
-    });
-    return res.data.photos[0]?.src?.landscape || "";
+    const { location } = req.query;
+    const images = await fetchLocationImages(location);
+    res.json({ images });
   } catch (err) {
-    console.error(`Pexels fetch error for ${query}:`, err.message);
-    return "";
+    res.status(500).json({ error: "Failed to fetch images" });
   }
 };
 
-// Fallback: fetch image from Unsplash API
-const fetchImageFromUnsplash = async (query) => {
-  try {
-    const res = await axios.get("https://api.unsplash.com/search/photos", {
-      params: { query, per_page: 1, orientation: "landscape" },
-      headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
-    });
-    return res.data.results[0]?.urls?.regular || "";
-  } catch (err) {
-    console.error(`Unsplash fetch error for ${query}:`, err.message);
-    return "";
-  }
-};
-
-// Fetch image using Pexels first, fallback to Unsplash
-const fetchImage = async (query) => {
-  let image = await fetchImageFromPexels(query);
-  if (!image) {
-    image = await fetchImageFromUnsplash(query);
-  }
-  return image;
-};
-
+// Main Trip Generator
 export const generateTrip = async (req, res) => {
   try {
     const { location, days, budget, group } = req.body;
 
     const prompt = `
-You are a travel planner AI that must return STRICTLY valid JSON only — no explanations, no markdown, no extra text.  
-Generate a realistic, detailed trip plan following EXACTLY this schema and rules.
+You are a travel planner AI that must return STRICTLY valid JSON only — no explanations, no markdown, no extra text.
+Generate a realistic, detailed trip plan following EXACTLY this schema and rules:
 
 Schema:
 {
@@ -105,54 +75,44 @@ Generate for:
 ${JSON.stringify({ location, days, budget, group })}
 `;
 
-    // Step 1: Call Gemini
+    // 1️⃣ Generate plan with Gemini
     const aiResponse = await generateWithGemini(prompt);
-
-    // Step 2: Clean & parse AI output
     const parsedData = extractJSON(aiResponse);
     if (!parsedData) {
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // Step 3: Add images safely
+    // 2️⃣ Add hotel images
     if (Array.isArray(parsedData.hotelOptions)) {
       for (const hotel of parsedData.hotelOptions) {
-        try {
-          hotel.hotelImageUrl =
-            (await fetchImage(
-              `${hotel.hotelName || ""} hotel in ${parsedData.location?.name || ""}`
-            )) || "";
-        } catch (e) {
-          console.error("Hotel image fetch failed:", e.message);
-          hotel.hotelImageUrl = "";
-        }
+        hotel.hotelImageUrl = await fetchImage(
+          hotel.hotelName || "",
+          parsedData.location?.name || "",
+          "hotel",
+          hotel.hotelAddress || ""
+        );
       }
     }
 
+    // 3️⃣ Add place images
     if (Array.isArray(parsedData.itinerary)) {
       for (const day of parsedData.itinerary) {
         if (Array.isArray(day.plan)) {
           for (const place of day.plan) {
-            try {
-              place.placeImageUrl =
-                (await fetchImage(
-                  `${place.placeName || ""} in ${parsedData.location?.name || ""}`
-                )) || "";
-            } catch (e) {
-              console.error("Place image fetch failed:", e.message);
-              place.placeImageUrl = "";
-            }
+            place.placeImageUrl = await fetchImage(
+              place.placeName || "",
+              parsedData.location?.name || "",
+              "place"
+            );
           }
         }
       }
     }
 
-    // Step 4: Send final enriched JSON
+    // 4️⃣ Send final enriched JSON
     res.status(200).json(parsedData);
-
   } catch (err) {
     console.error("Trip generation error:", err);
     res.status(500).json({ error: "Failed to generate trip" });
   }
 };
-
